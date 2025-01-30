@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sleep Tracker</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <style>
         body {
@@ -65,6 +66,13 @@
         .earned {
             color: #0d6efd;
         }
+        #trackedSleepList .list-group-item {
+            margin-bottom: 5px;
+            border-radius: 5px;
+        }
+        #trackedSleepList .badge {
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -79,6 +87,16 @@
         <div class="main-content" id="main-content">
             <div id="tracker-view" class="container">
                 <h1 class="text-center mb-4">Sleep Tracker</h1>
+                <!-- Success Alert -->
+                <div id="successAlert" class="alert alert-success alert-dismissible fade show" role="alert" style="display: none;">
+                    Sleep data added successfully!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <!-- Error Alert -->
+                <div id="errorAlert" class="alert alert-danger alert-dismissible fade show" role="alert" style="display: none;">
+                    <span id="errorMessage"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
                 <form id="sleepForm" class="mb-3">
                     <div class="mb-3">
                         <label for="date" class="form-label">Date</label>
@@ -88,7 +106,7 @@
                         <label for="hours" class="form-label">Hours Slept</label>
                         <input type="number" id="hours" class="form-control" min="0" step="0.1" required>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Add Sleep Data</button>
+                    <button type="submit" id="addSleepData" class="btn btn-primary w-100">Add Sleep Data</button>
                 </form>
                 <div id="summary" class="mb-3">
                     <h2>Total Hours: <span id="totalHours">0</span></h2>
@@ -102,6 +120,13 @@
                 <h1 class="text-center mb-4">Streak Dashboard</h1>
                 <p>View your sleep streak data and trends.</p>
                 <p><strong>Current Streak:</strong> <span id="dashboard-streak">0</span> days</p>
+                <canvas id="sleepChart" width="400" height="200"></canvas>
+                
+                <!-- Add a list of tracked sleep days -->
+                <div class="mt-4">
+                    <h3>Tracked Sleep Days</h3>
+                    <ul id="trackedSleepList" class="list-group"></ul>
+                </div>
             </div>
 
             <div id="badges-view" class="container" style="display: none;">
@@ -109,8 +134,16 @@
                 <p>Earn badges based on your sleep streaks.</p>
                 <ul id="badgesList" class="list-group">
                     <li class="list-group-item d-flex align-items-center">
-                        <i id="streak-badge" class="bi bi-award badge-icon"></i>
+                        <i id="streak-badge-3" class="bi bi-award badge-icon"></i>
                         <span class="ms-2">3-Day Streak</span>
+                    </li>
+                    <li class="list-group-item d-flex align-items-center">
+                        <i id="streak-badge-7" class="bi bi-award badge-icon"></i>
+                        <span class="ms-2">7-Day Streak</span>
+                    </li>
+                    <li class="list-group-item d-flex align-items-center">
+                        <i id="streak-badge-30" class="bi bi-award badge-icon"></i>
+                        <span class="ms-2">30-Day Streak</span>
                     </li>
                 </ul>
             </div>
@@ -118,36 +151,210 @@
     </div>
 
     <script>
-        function updateBadges() {
-            const streakBadge = document.getElementById('streak-badge');
-            if (parseInt(document.getElementById('streak').textContent) >= 3) {
-                streakBadge.classList.add('bi-award-fill', 'earned');
-                streakBadge.classList.remove('bi-award');
-            } else {
-                streakBadge.classList.add('bi-award');
-                streakBadge.classList.remove('bi-award-fill', 'earned');
-            }
-        }
-
         document.getElementById('nav-tracker').addEventListener('click', function() {
             document.getElementById('tracker-view').style.display = 'block';
             document.getElementById('dashboard-view').style.display = 'none';
             document.getElementById('badges-view').style.display = 'none';
-            updateBadges();
         });
 
         document.getElementById('nav-dashboard').addEventListener('click', function() {
             document.getElementById('tracker-view').style.display = 'none';
             document.getElementById('dashboard-view').style.display = 'block';
             document.getElementById('badges-view').style.display = 'none';
+            updateDashboard(); // Update the dashboard content
         });
 
         document.getElementById('nav-badges').addEventListener('click', function() {
             document.getElementById('tracker-view').style.display = 'none';
             document.getElementById('dashboard-view').style.display = 'none';
             document.getElementById('badges-view').style.display = 'block';
-            updateBadges();
         });
+
+        // Function to update sleep summary
+        function updateSleepSummary() {
+            let sleepData = JSON.parse(localStorage.getItem('sleepData')) || [];
+            let totalHours = sleepData.reduce((sum, entry) => sum + parseFloat(entry.hours), 0);
+            let streak = calculateStreak(sleepData);
+
+            document.getElementById('totalHours').textContent = totalHours.toFixed(1);
+            document.getElementById('streak').textContent = streak;
+            document.getElementById('dashboard-streak').textContent = streak;
+
+            // Update badges based on streak
+            updateBadges(streak);
+        }
+
+        function updateBadges(streak) {
+            const badges = {
+                3: 'streak-badge-3',
+                7: 'streak-badge-7',
+                30: 'streak-badge-30'
+            };
+
+            for (let [threshold, badgeId] of Object.entries(badges)) {
+                const badgeElement = document.getElementById(badgeId);
+                if (streak >= threshold) {
+                    badgeElement.classList.add('earned');
+                } else {
+                    badgeElement.classList.remove('earned');
+                }
+            }
+        }
+
+        function calculateStreak(data) {
+            if (data.length === 0) return 0;
+
+            // Sort data by date (oldest first)
+            data.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            let streak = 1; // Start with the most recent day
+            let lastDate = new Date(data[data.length - 1].date);
+
+            // Loop backward through the data to find consecutive days
+            for (let i = data.length - 2; i >= 0; i--) {
+                const currentDate = new Date(data[i].date);
+                const timeDiff = lastDate - currentDate;
+                const dayDiff = timeDiff / (1000 * 60 * 60 * 24); // Convert milliseconds to days
+
+                if (dayDiff === 1) {
+                    streak++; // Increment streak if the difference is exactly 1 day
+                    lastDate = currentDate; // Update lastDate to the current date
+                } else if (dayDiff > 1) {
+                    break; // Streak ends if there's a gap of more than 1 day
+                }
+            }
+
+            return streak;
+        }
+
+        // Menu toggle functionality
+        document.getElementById('toggleSidebar').addEventListener('click', function() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            
+            if (window.innerWidth >= 768) { // Only for medium and larger screens
+                if (sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.remove('collapsed');
+                    mainContent.classList.remove('collapsed');
+                } else {
+                    sidebar.classList.add('collapsed');
+                    mainContent.classList.add('collapsed');
+                }
+            }
+        });
+
+        function renderTrackedSleepList() {
+            const sleepData = JSON.parse(localStorage.getItem('sleepData')) || [];
+            const trackedSleepList = document.getElementById('trackedSleepList');
+
+            // Clear the list before rendering
+            trackedSleepList.innerHTML = '';
+
+            if (sleepData.length === 0) {
+                trackedSleepList.innerHTML = '<li class="list-group-item">No sleep data tracked yet.</li>';
+                return;
+            }
+
+            // Sort data by date (most recent first)
+            sleepData.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // Render each sleep entry
+            sleepData.forEach(entry => {
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                listItem.innerHTML = `
+                    <span>${entry.date}</span>
+                    <span class="badge bg-primary rounded-pill">${entry.hours} hours</span>
+                `;
+                trackedSleepList.appendChild(listItem);
+            });
+        }
+
+        let sleepChart;
+
+        function renderSleepChart() {
+            const sleepData = JSON.parse(localStorage.getItem('sleepData')) || [];
+            const dates = sleepData.map(entry => entry.date);
+            const hours = sleepData.map(entry => parseFloat(entry.hours));
+
+            const ctx = document.getElementById('sleepChart').getContext('2d');
+            if (sleepChart) {
+                sleepChart.destroy(); // Destroy existing chart instance
+            }
+
+            sleepChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Hours Slept',
+                        data: hours,
+                        borderColor: '#0d6efd',
+                        fill: false
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Call this function when updating the dashboard
+        function updateDashboard() {
+            updateSleepSummary();
+            renderSleepChart();
+            renderTrackedSleepList(); // Render the list of tracked sleep days
+        }
+
+        // Define the form submission handler
+        function handleFormSubmit(e) {
+            e.preventDefault();
+
+            const date = document.getElementById('date').value;
+            const hours = parseFloat(document.getElementById('hours').value);
+
+            // Validate input
+            if (!date || isNaN(hours) || hours < 0) {
+                alert('Please enter a valid date and positive number of hours.');
+                return;
+            }
+
+            // Check for duplicate dates
+            let sleepData = JSON.parse(localStorage.getItem('sleepData')) || [];
+            const isDuplicate = sleepData.some(entry => entry.date === date);
+            if (isDuplicate) {
+                alert('Sleep data for this date already exists.');
+                return;
+            }
+
+            // Save to localStorage
+            sleepData.push({ date, hours });
+            localStorage.setItem('sleepData', JSON.stringify(sleepData));
+
+            // Show Bootstrap success alert
+            const successAlert = document.getElementById('successAlert');
+            successAlert.style.display = 'block';
+
+            // Hide the alert after 3 seconds
+            setTimeout(() => {
+                successAlert.style.display = 'none';
+            }, 3000);
+
+            // Update UI
+            e.target.reset(); // Reset the form
+            updateSleepSummary(); // Update summary immediately after adding data
+        }
+
+        // Attach the form submission handler
+        document.getElementById('sleepForm').addEventListener('submit', handleFormSubmit);
+
+        // Ensure updateSleepSummary is called when the page loads
+        window.onload = updateSleepSummary;
+
     </script>
 </body>
 </html>
