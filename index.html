@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sleep Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .sidebar {
+            width: 250px;
+            height: 100vh;
+            position: fixed;
+            background: #343a40;
+            padding-top: 20px;
+            transition: width 0.3s;
+            overflow: hidden;
+        }
+        .sidebar a {
+            color: #fff;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .sidebar a:hover {
+            background: #495057;
+        }
+        .sidebar i {
+            margin-right: 10px;
+        }
+        .main-content {
+            margin-left: 260px;
+            padding: 20px;
+            transition: margin-left 0.3s;
+        }
+        .sidebar.collapsed {
+            width: 60px;
+        }
+        .sidebar.collapsed a span {
+            display: none;
+        }
+        .main-content.collapsed {
+            margin-left: 70px;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 60px;
+            }
+            .sidebar a span {
+                display: none;
+            }
+            .main-content {
+                margin-left: 70px;
+            }
+        }
+        .badge-icon {
+            color: lightgray;
+            font-size: 1.5rem;
+        }
+        .earned {
+            color: #0d6efd;
+        }
+    </style>
+</head>
+<body>
+    <div class="d-flex">
+        <div class="sidebar" id="sidebar">
+            <a href="#" class="d-none d-md-block" id="toggleSidebar"><i class="bi bi-list"></i> <span>Menu</span></a>
+            <a href="#" id="nav-tracker"><i class="bi bi-moon"></i> <span>Sleep Tracker</span></a>
+            <a href="#" id="nav-dashboard"><i class="bi bi-bar-chart"></i> <span>Dashboard</span></a>
+            <a href="#" id="nav-badges"><i class="bi bi-patch-check"></i> <span>Badges</span></a>
+        </div>
+
+        <div class="main-content" id="main-content">
+            <div id="tracker-view" class="container">
+                <h1 class="text-center mb-4">Sleep Tracker</h1>
+                <form id="sleepForm" class="mb-3">
+                    <div class="mb-3">
+                        <label for="date" class="form-label">Date</label>
+                        <input type="date" id="date" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="hours" class="form-label">Hours Slept</label>
+                        <input type="number" id="hours" class="form-control" min="0" step="0.1" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Add Sleep Data</button>
+                </form>
+                <div id="summary" class="mb-3">
+                    <h2>Total Hours: <span id="totalHours">0</span></h2>
+                    <p>Streak: <span class="streak" id="streak">0</span> days</p>
+                </div>
+                <ul id="sleepList" class="list-group mb-3"></ul>
+                <button id="resetButton" class="btn btn-danger w-100">Reset Streak</button>
+            </div>
+
+            <div id="dashboard-view" class="container" style="display: none;">
+                <h1 class="text-center mb-4">Streak Dashboard</h1>
+                <p>View your sleep streak data and trends.</p>
+                <p><strong>Current Streak:</strong> <span id="dashboard-streak">0</span> days</p>
+            </div>
+
+            <div id="badges-view" class="container" style="display: none;">
+                <h1 class="text-center mb-4">Badges</h1>
+                <p>Earn badges based on your sleep streaks.</p>
+                <ul id="badgesList" class="list-group">
+                    <li class="list-group-item d-flex align-items-center">
+                        <i id="streak-badge" class="bi bi-award badge-icon"></i>
+                        <span class="ms-2">3-Day Streak</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateBadges() {
+            const streakBadge = document.getElementById('streak-badge');
+            if (parseInt(document.getElementById('streak').textContent) >= 3) {
+                streakBadge.classList.add('bi-award-fill', 'earned');
+                streakBadge.classList.remove('bi-award');
+            } else {
+                streakBadge.classList.add('bi-award');
+                streakBadge.classList.remove('bi-award-fill', 'earned');
+            }
+        }
+
+        document.getElementById('nav-tracker').addEventListener('click', function() {
+            document.getElementById('tracker-view').style.display = 'block';
+            document.getElementById('dashboard-view').style.display = 'none';
+            document.getElementById('badges-view').style.display = 'none';
+            updateBadges();
+        });
+
+        document.getElementById('nav-dashboard').addEventListener('click', function() {
+            document.getElementById('tracker-view').style.display = 'none';
+            document.getElementById('dashboard-view').style.display = 'block';
+            document.getElementById('badges-view').style.display = 'none';
+        });
+
+        document.getElementById('nav-badges').addEventListener('click', function() {
+            document.getElementById('tracker-view').style.display = 'none';
+            document.getElementById('dashboard-view').style.display = 'none';
+            document.getElementById('badges-view').style.display = 'block';
+            updateBadges();
+        });
+    </script>
+</body>
+</html>
